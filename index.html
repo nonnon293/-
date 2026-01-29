@@ -7,14 +7,17 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
-        :root { --primary: #FF3B30; --bg: #F2F2F7; }
+        :root { --primary: #FF3B30; --secondary: #007AFF; --bg: #F2F2F7; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 400px; }
         .card { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.05); margin-bottom: 20px; text-align: center; }
         
-        /* タイマーとマージン選択のレイアウト */
-        .timer-area { display: flex; align-items: center; justify-content: center; gap: 15px; margin: 10px 0; }
+        .wake-timer-label { font-size: 12px; color: #666; margin-top: 5px; }
+        .wake-timer { font-size: 24px; font-weight: 700; color: var(--secondary); margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+        
+        .timer-area { display: flex; align-items: center; justify-content: center; gap: 15px; margin: 10px 0; border-top: 1px solid #eee; padding-top: 15px; }
         .timer { font-size: 38px; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums; flex-grow: 1; }
+        
         .margin-selector { display: flex; flex-direction: column; gap: 5px; }
         .margin-btn { background: #eee; border: none; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: bold; color: #666; cursor: pointer; }
         .margin-btn.active { background: #000; color: white; }
@@ -23,7 +26,7 @@
         .info { font-size: 14px; color: #555; line-height: 1.6; background: #f9f9f9; padding: 12px; border-radius: 12px; }
         
         .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        button.shift-btn { background: white; border: none; border-radius: 12px; padding: 18px 5px; font-size: 16px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05); cursor: pointer; }
+        button.shift-btn { background: white; border: none; border-radius: 12px; padding: 18px 5px; font-size: 15px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05); cursor: pointer; }
         button.shift-btn.active { background: var(--primary); color: white; }
         
         .day-type { display: flex; width: 100%; gap: 10px; margin-bottom: 20px; }
@@ -40,6 +43,9 @@
     </div>
 
     <div class="card">
+        <div id="wake-label" class="wake-timer-label">起床まで</div>
+        <div id="wake-countdown" class="wake-timer">00:00:00</div>
+
         <div id="target-label" style="font-size: 13px; color:#888;">出発の--分前まで</div>
         <div class="timer-area">
             <div id="countdown" class="timer">00:00:00</div>
@@ -49,6 +55,7 @@
                 <button id="m-3" class="margin-btn" onclick="setMargin(3)">3分前</button>
             </div>
         </div>
+        
         <div id="sub-details" class="sub-info">出発 --:-- / 乗換 --分</div>
         <div id="detail-info" class="info">シフトを選択してください</div>
     </div>
@@ -63,8 +70,8 @@ const data = {
         { s: "07:30", w: "04:49", d: "06:04", t: "00特", m: "16分" },
         { s: "07:45", w: "05:02", d: "06:17", t: "13特", m: "12分" },
         { s: "08:00", w: "05:17", d: "06:32", t: "26特", m: "11分" },
-        { s: "08:30", w: "05:35", d: "06:50", t: "50特", m: "13分" },
-        { s: "08:30", w: "05:44", d: "06:59", t: "02特", m: "14分" },
+        { s: "08:30(1)", w: "05:35", d: "06:50", t: "50特", m: "13分" },
+        { s: "08:30(2)", w: "05:44", d: "06:59", t: "02特", m: "14分" },
         { s: "09:00", w: "06:11", d: "07:26", t: "26特", m: "12分" },
         { s: "10:00", w: "07:14", d: "08:29", t: "32急", m: "16分" },
         { s: "12:00", w: "09:13", d: "10:28", t: "23急", m: "11分" },
@@ -76,8 +83,8 @@ const data = {
         { s: "07:30", w: "04:25", d: "05:40", t: "58特", m: "17分" },
         { s: "07:45", w: "04:53", d: "06:08", t: "02各", m: "17分" },
         { s: "08:00", w: "05:08", d: "06:23", t: "16各", m: "12分" },
-        { s: "08:30", w: "05:38", d: "06:53", t: "51急", m: "15分" },
-        { s: "08:30", w: "05:47", d: "07:02", t: "03急", m: "17分" },
+        { s: "08:30(1)", w: "05:38", d: "06:53", t: "51急", m: "15分" },
+        { s: "08:30(2)", w: "05:47", d: "07:02", t: "03急", m: "17分" },
         { s: "09:00", w: "06:08", d: "07:23", t: "23急", m: "16分" },
         { s: "10:00", w: "07:24", d: "08:39", t: "33急", m: "11分" },
         { s: "12:00", w: "09:13", d: "10:28", t: "23急", m: "10分" },
@@ -88,7 +95,7 @@ const data = {
 
 let currentDayType = 'weekday';
 let selectedShift = null;
-let marginMinutes = 2; // デフォルトは2分前
+let marginMinutes = 2;
 
 function setDayType(type) {
     currentDayType = type;
@@ -107,11 +114,10 @@ function setMargin(m) {
 function renderButtons() {
     const grid = document.getElementById('shift-grid');
     grid.innerHTML = '';
-    data[currentDayType].forEach((item, index) => {
+    data[currentDayType].forEach((item) => {
         const btn = document.createElement('button');
-        const isDuplicate = data[currentDayType].filter(x => x.s === item.s).length > 1;
         btn.className = 'shift-btn';
-        btn.innerText = item.s + (isDuplicate ? `(${index+1})` : '');
+        btn.innerText = item.s;
         btn.onclick = () => {
             selectedShift = item;
             renderButtons();
@@ -122,26 +128,35 @@ function renderButtons() {
     });
 }
 
-function updateTimer() {
-    if (!selectedShift) return;
-    const now = new Date();
-    const target = new Date();
-    const [h, m] = selectedShift.d.split(':');
-    
-    // 選択されたマージン分（1分、2分、3分）前に設定
-    target.setHours(h, parseInt(m) - marginMinutes, 0);
-    
-    if (target < now) target.setDate(target.getDate() + 1);
-    
-    const diff = target - now;
+function formatTime(diff) {
+    if (diff < 0) return "00:00:00";
     const hours = Math.floor(diff / 3600000);
     const mins = Math.floor((diff % 3600000) / 60000);
     const secs = Math.floor((diff % 60000) / 1000);
+    return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function updateTimer() {
+    if (!selectedShift) return;
+    const now = new Date();
+    
+    const wakeTarget = new Date();
+    const [wH, wM] = selectedShift.w.split(':');
+    wakeTarget.setHours(wH, wM, 0);
+    if (wakeTarget < now) wakeTarget.setDate(wakeTarget.getDate() + 1);
+    document.getElementById('wake-label').innerText = `${selectedShift.w} 起床まで`;
+    document.getElementById('wake-countdown').innerText = formatTime(wakeTarget - now);
+
+    const departureTarget = new Date();
+    const [dH, dM] = selectedShift.d.split(':');
+    departureTarget.setHours(dH, parseInt(dM) - marginMinutes, 0);
+    if (departureTarget < now) departureTarget.setDate(departureTarget.getDate() + 1);
     
     document.getElementById('target-label').innerText = `${selectedShift.s} シフト：出発${marginMinutes}分前まで`;
-    document.getElementById('countdown').innerText = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    document.getElementById('countdown').innerText = formatTime(departureTarget - now);
+    
     document.getElementById('sub-details').innerText = `出発 ${selectedShift.d} / 乗換 ${selectedShift.m}`;
-    document.getElementById('detail-info').innerHTML = `起床：${selectedShift.w} / 電車：${selectedShift.t}`;
+    document.getElementById('detail-info').innerHTML = `電車：${selectedShift.t}`;
 }
 
 setInterval(updateTimer, 1000);
