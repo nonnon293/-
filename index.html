@@ -20,19 +20,17 @@
         .card { background: white; border-radius: 24px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; text-align: center; }
         
         /* 起床タイマー */
-        .wake-section { margin-bottom: 15px; }
-        .wake-label { font-size: 13px; color: #888; margin-bottom: 2px; }
-        .wake-countdown { font-size: 28px; font-weight: 700; color: var(--secondary); font-variant-numeric: tabular-nums; }
+        .wake-section { margin-bottom: 10px; }
+        .wake-label { font-size: 12px; color: #888; }
+        .wake-countdown { font-size: 26px; font-weight: 700; color: var(--secondary); font-variant-numeric: tabular-nums; }
 
         /* 出発タイマーエリア */
-        .departure-section { border-top: 1px solid #f0f0f0; padding-top: 15px; margin-top: 5px; position: relative; }
-        .target-label { font-size: 13px; color: #888; margin-bottom: 8px; }
+        .departure-section { border-top: 1px solid #f0f0f0; padding-top: 15px; margin-top: 5px; }
+        .main-timer { font-size: 48px; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums; line-height: 1; margin-bottom: 15px; }
         
-        .timer-display-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px; }
-        .main-timer { font-size: 42px; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums; line-height: 1; }
-        
-        .margin-selector { display: flex; flex-direction: column; gap: 4px; }
-        .margin-btn { background: #f0f0f0; border: none; border-radius: 6px; padding: 5px 8px; font-size: 11px; font-weight: bold; color: #666; width: 50px; }
+        /* マージン選択（横並び） */
+        .margin-selector-row { display: flex; justify-content: center; gap: 8px; margin-bottom: 15px; }
+        .margin-btn { flex: 1; max-width: 80px; background: #f0f0f0; border: none; border-radius: 8px; padding: 10px 0; font-size: 13px; font-weight: bold; color: #666; }
         .margin-btn.active { background: #000; color: white; }
 
         /* 出発・乗換の詳細 */
@@ -56,22 +54,20 @@
 
     <div class="card">
         <div class="wake-section">
-            <div id="wake-label" class="wake-label">--:-- 起床まで</div>
+            <div id="wake-label" class="wake-label">起床まで</div>
             <div id="wake-countdown" class="wake-countdown">00:00:00</div>
         </div>
 
         <div class="departure-section">
-            <div id="target-label" class="target-label">シフトを選択してください</div>
-            <div class="timer-display-row">
-                <div id="countdown" class="main-timer">00:00:00</div>
-                <div class="margin-selector">
-                    <button id="m-1" class="margin-btn" onclick="setMargin(1)">1分前</button>
-                    <button id="m-2" class="margin-btn active" onclick="setMargin(2)">2分前</button>
-                    <button id="m-3" class="margin-btn" onclick="setMargin(3)">3分前</button>
-                </div>
+            <div id="countdown" class="main-timer">00:00:00</div>
+            
+            <div class="margin-selector-row">
+                <button id="m-1" class="margin-btn" onclick="setMargin(1)">1分前</button>
+                <button id="m-2" class="margin-btn active" onclick="setMargin(2)">2分前</button>
+                <button id="m-3" class="margin-btn" onclick="setMargin(3)">3分前</button>
             </div>
             
-            <div id="sub-details-box" class="sub-info-box">
+            <div class="sub-info-box">
                 <div id="sub-details" class="sub-info-text">出発 --:-- / 乗換 --分</div>
             </div>
             <div id="detail-info" class="train-detail">電車：--</div>
@@ -158,7 +154,6 @@ function updateTimer() {
     if (!selectedShift) return;
     const now = new Date();
     
-    // 起床タイマー
     const wakeTarget = new Date();
     const [wH, wM] = selectedShift.w.split(':');
     wakeTarget.setHours(wH, wM, 0);
@@ -166,15 +161,12 @@ function updateTimer() {
     document.getElementById('wake-label').innerText = `${selectedShift.w} 起床まで`;
     document.getElementById('wake-countdown').innerText = formatTime(wakeTarget - now);
 
-    // 出発タイマー（2分前など）
     const departureTarget = new Date();
     const [dH, dM] = selectedShift.d.split(':');
     departureTarget.setHours(dH, parseInt(dM) - marginMinutes, 0);
     if (departureTarget < now) departureTarget.setDate(departureTarget.getDate() + 1);
     
-    document.getElementById('target-label').innerText = `${selectedShift.s} シフト：出発${marginMinutes}分前まで`;
     document.getElementById('countdown').innerText = formatTime(departureTarget - now);
-    
     document.getElementById('sub-details').innerText = `出発 ${selectedShift.d} / 乗換 ${selectedShift.m}`;
     document.getElementById('detail-info').innerHTML = `電車：${selectedShift.t}`;
 }
