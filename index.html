@@ -10,28 +10,40 @@
         :root { --primary: #FF3B30; --secondary: #007AFF; --bg: #F2F2F7; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 400px; }
-        .card { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.05); margin-bottom: 20px; text-align: center; }
         
-        .wake-timer-label { font-size: 12px; color: #666; margin-top: 5px; }
-        .wake-timer { font-size: 24px; font-weight: 700; color: var(--secondary); margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+        /* シフト切り替え */
+        .day-type { display: flex; width: 100%; gap: 10px; margin-bottom: 20px; }
+        .day-btn { flex: 1; padding: 14px; border-radius: 12px; border: none; background: #e5e5ea; font-weight: bold; font-size: 14px; }
+        .day-btn.active { background: #000; color: white; }
+
+        /* メインカード */
+        .card { background: white; border-radius: 24px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; text-align: center; }
         
-        .timer-area { display: flex; align-items: center; justify-content: center; gap: 15px; margin: 10px 0; border-top: 1px solid #eee; padding-top: 15px; }
-        .timer { font-size: 38px; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums; flex-grow: 1; }
+        /* 起床タイマー */
+        .wake-section { margin-bottom: 15px; }
+        .wake-label { font-size: 13px; color: #888; margin-bottom: 2px; }
+        .wake-countdown { font-size: 28px; font-weight: 700; color: var(--secondary); font-variant-numeric: tabular-nums; }
+
+        /* 出発タイマーエリア */
+        .departure-section { border-top: 1px solid #f0f0f0; padding-top: 15px; margin-top: 5px; position: relative; }
+        .target-label { font-size: 13px; color: #888; margin-bottom: 8px; }
         
-        .margin-selector { display: flex; flex-direction: column; gap: 5px; }
-        .margin-btn { background: #eee; border: none; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: bold; color: #666; cursor: pointer; }
+        .timer-display-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px; }
+        .main-timer { font-size: 42px; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums; line-height: 1; }
+        
+        .margin-selector { display: flex; flex-direction: column; gap: 4px; }
+        .margin-btn { background: #f0f0f0; border: none; border-radius: 6px; padding: 5px 8px; font-size: 11px; font-weight: bold; color: #666; width: 50px; }
         .margin-btn.active { background: #000; color: white; }
 
-        .sub-info { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 12px; padding: 10px; background: #FFF9F9; border-radius: 10px; border: 1px solid #FFD6D4; }
-        .info { font-size: 14px; color: #555; line-height: 1.6; background: #f9f9f9; padding: 12px; border-radius: 12px; }
-        
+        /* 出発・乗換の詳細 */
+        .sub-info-box { background: #FFF9F9; border: 1px solid #FFD6D4; border-radius: 14px; padding: 12px; margin-bottom: 10px; }
+        .sub-info-text { font-size: 18px; font-weight: bold; color: #333; }
+        .train-detail { background: #f9f9f9; padding: 10px; border-radius: 10px; font-size: 14px; color: #666; }
+
+        /* シフトボタン一覧 */
         .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        button.shift-btn { background: white; border: none; border-radius: 12px; padding: 18px 5px; font-size: 15px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05); cursor: pointer; }
+        button.shift-btn { background: white; border: none; border-radius: 14px; padding: 18px 5px; font-size: 16px; font-weight: bold; color: var(--secondary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; }
         button.shift-btn.active { background: var(--primary); color: white; }
-        
-        .day-type { display: flex; width: 100%; gap: 10px; margin-bottom: 20px; }
-        .day-btn { flex: 1; padding: 12px; border-radius: 10px; border: none; background: #e5e5ea; font-weight: bold; }
-        .day-btn.active { background: #000; color: white; }
     </style>
 </head>
 <body>
@@ -43,21 +55,27 @@
     </div>
 
     <div class="card">
-        <div id="wake-label" class="wake-timer-label">起床まで</div>
-        <div id="wake-countdown" class="wake-timer">00:00:00</div>
-
-        <div id="target-label" style="font-size: 13px; color:#888;">出発の--分前まで</div>
-        <div class="timer-area">
-            <div id="countdown" class="timer">00:00:00</div>
-            <div class="margin-selector">
-                <button id="m-1" class="margin-btn" onclick="setMargin(1)">1分前</button>
-                <button id="m-2" class="margin-btn active" onclick="setMargin(2)">2分前</button>
-                <button id="m-3" class="margin-btn" onclick="setMargin(3)">3分前</button>
-            </div>
+        <div class="wake-section">
+            <div id="wake-label" class="wake-label">--:-- 起床まで</div>
+            <div id="wake-countdown" class="wake-countdown">00:00:00</div>
         </div>
-        
-        <div id="sub-details" class="sub-info">出発 --:-- / 乗換 --分</div>
-        <div id="detail-info" class="info">シフトを選択してください</div>
+
+        <div class="departure-section">
+            <div id="target-label" class="target-label">シフトを選択してください</div>
+            <div class="timer-display-row">
+                <div id="countdown" class="main-timer">00:00:00</div>
+                <div class="margin-selector">
+                    <button id="m-1" class="margin-btn" onclick="setMargin(1)">1分前</button>
+                    <button id="m-2" class="margin-btn active" onclick="setMargin(2)">2分前</button>
+                    <button id="m-3" class="margin-btn" onclick="setMargin(3)">3分前</button>
+                </div>
+            </div>
+            
+            <div id="sub-details-box" class="sub-info-box">
+                <div id="sub-details" class="sub-info-text">出発 --:-- / 乗換 --分</div>
+            </div>
+            <div id="detail-info" class="train-detail">電車：--</div>
+        </div>
     </div>
 
     <div id="shift-grid" class="grid"></div>
@@ -123,7 +141,7 @@ function renderButtons() {
             renderButtons();
             updateTimer();
         };
-        if (selectedShift && selectedShift === item) btn.classList.add('active');
+        if (selectedShift && selectedShift.s === item.s && selectedShift.d === item.d) btn.classList.add('active');
         grid.appendChild(btn);
     });
 }
@@ -140,6 +158,7 @@ function updateTimer() {
     if (!selectedShift) return;
     const now = new Date();
     
+    // 起床タイマー
     const wakeTarget = new Date();
     const [wH, wM] = selectedShift.w.split(':');
     wakeTarget.setHours(wH, wM, 0);
@@ -147,6 +166,7 @@ function updateTimer() {
     document.getElementById('wake-label').innerText = `${selectedShift.w} 起床まで`;
     document.getElementById('wake-countdown').innerText = formatTime(wakeTarget - now);
 
+    // 出発タイマー（2分前など）
     const departureTarget = new Date();
     const [dH, dM] = selectedShift.d.split(':');
     departureTarget.setHours(dH, parseInt(dM) - marginMinutes, 0);
