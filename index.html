@@ -25,20 +25,16 @@
         .timer-label { font-size: 13px; font-weight: bold; margin-bottom: 2px; }
         .timer-value { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.2; }
 
-        /* 個別色設定 */
         .wake-color { color: var(--secondary); }
         .dept-color { color: var(--primary); }
         .tran-color { color: var(--accent); }
 
-        /* マージン選択（横並び） */
         .margin-selector-row { display: flex; justify-content: center; gap: 8px; margin: 10px 0; }
         .margin-btn { flex: 1; max-width: 80px; background: #f0f0f0; border: none; border-radius: 8px; padding: 8px 0; font-size: 12px; font-weight: bold; color: #666; }
         .margin-btn.active { background: #000; color: white; }
 
-        /* 詳細情報 */
         .train-detail { background: #f9f9f9; padding: 12px; border-radius: 12px; font-size: 14px; color: #666; text-align: center; margin-top: 10px; border: 1px solid #eee; }
 
-        /* シフトボタン一覧 */
         .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
         button.shift-btn { background: white; border: none; border-radius: 14px; padding: 18px 5px; font-size: 16px; font-weight: bold; color: #333; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; }
         button.shift-btn.active { background: var(--primary); color: white; }
@@ -54,13 +50,13 @@
 
     <div class="card">
         <div class="timer-row">
-            <div id="label-w" class="timer-label wake-color">起床時間まで</div>
-            <div id="timer-w" class="timer-value wake-color">00:00:00</div>
+            <div id="label-w" class="timer-label wake-color">起床まで</div>
+            <div id="timer-w" class="timer-value wake-color">--:--:--</div>
         </div>
 
         <div class="timer-row">
-            <div id="label-d" class="timer-label dept-color">出発時間まで</div>
-            <div id="timer-d" class="timer-value dept-color">00:00:00</div>
+            <div id="label-d" class="timer-label dept-color">出発まで</div>
+            <div id="timer-d" class="timer-value dept-color">--:--:--</div>
             <div class="margin-selector-row">
                 <button id="m-1" class="margin-btn" onclick="setMargin(1)">1分前</button>
                 <button id="m-2" class="margin-btn active" onclick="setMargin(2)">2分前</button>
@@ -70,7 +66,7 @@
 
         <div class="timer-row">
             <div id="label-t" class="timer-label tran-color">乗り換えまで</div>
-            <div id="timer-t" class="timer-value tran-color">00:00:00</div>
+            <div id="timer-t" class="timer-value tran-color">--:--:--</div>
         </div>
         
         <div id="detail-info" class="train-detail">シフトを選択してください</div>
@@ -145,7 +141,7 @@ function renderButtons() {
 }
 
 function formatTime(diff) {
-    if (diff < 0) return "00:00:00";
+    if (isNaN(diff) || diff < 0) return "--:--:--";
     const hours = Math.floor(diff / 3600000);
     const mins = Math.floor((diff % 3600000) / 60000);
     const secs = Math.floor((diff % 60000) / 1000);
@@ -155,33 +151,38 @@ function formatTime(diff) {
 function updateTimer() {
     if (!selectedShift) return;
     const now = new Date();
-    
-    const [dH, dM] = selectedShift.d.split(':');
+    const dStr = selectedShift.d;
+    const wStr = selectedShift.w;
     
     // 起床時間
     const wakeT = new Date();
-    const [wH, wM] = selectedShift.w.split(':');
-    wakeT.setHours(wH, wM, 0);
-    if (wakeT < now) wakeT.setDate(wakeT.setDate() + 1);
-    document.getElementById('label-w').innerText = `${selectedShift.w} 起床まで`;
+    const [wH, wM] = wStr.split(':');
+    wakeT.setHours(parseInt(wH), parseInt(wM), 0);
+    // 出発時間（マージンなしの本来の時間）
+    const origDeptT = new Date();
+    const [dH, dM] = dStr.split(':');
+    origDeptT.setHours(parseInt(dH), parseInt(dM), 0);
+
+    // 全ての予定が終わっていたら翌日にする判定（乗り換え終了ベース）
+    const lastEventT = new Date(origDeptT.getTime() + selectedShift.m * 60000);
+    if (lastEventT < now) {
+        wakeT.setDate(wakeT.getDate() + 1);
+        origDeptT.setDate(origDeptT.getDate() + 1);
+    }
+
+    // 各タイマー表示
+    document.getElementById('label-w').innerText = `${wStr} 起床まで`;
     document.getElementById('timer-w').innerText = formatTime(wakeT - now);
 
-    // 出発時間（マージン適用）
-    const deptT = new Date();
-    deptT.setHours(dH, parseInt(dM) - marginMinutes, 0);
-    if (deptT < now) deptT.setDate(deptT.getDate() + 1);
-    document.getElementById('label-d').innerText = `${selectedShift.d} 出発の${marginMinutes}分前まで`;
-    document.getElementById('timer-d').innerText = formatTime(deptT - now);
+    const deptTWithMargin = new Date(origDeptT.getTime() - marginMinutes * 60000);
+    document.getElementById('label-d').innerText = `${dStr} 出発の${marginMinutes}分前まで`;
+    document.getElementById('timer-d').innerText = formatTime(deptTWithMargin - now);
 
-    // 乗り換え時間
-    const tranT = new Date();
-    // 乗り換えは「出発時間」+「乗換分」
-    tranT.setHours(dH, parseInt(dM) + selectedShift.m, 0);
-    if (tranT < now) tranT.setDate(tranT.getDate() + 1);
+    const tranT = new Date(origDeptT.getTime() + selectedShift.m * 60000);
     document.getElementById('label-t').innerText = `乗り換えまで（${selectedShift.m}分）`;
     document.getElementById('timer-t').innerText = formatTime(tranT - now);
     
-    document.getElementById('detail-info').innerHTML = `電車：${selectedShift.t} / 出発：${selectedShift.d}`;
+    document.getElementById('detail-info').innerHTML = `電車：${selectedShift.t} / 本来の出発：${selectedShift.d}`;
 }
 
 setInterval(updateTimer, 1000);
