@@ -11,15 +11,12 @@
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 400px; }
         
-        /* シフト切り替え */
         .day-type { display: flex; width: 100%; gap: 10px; margin-bottom: 15px; }
         .day-btn { flex: 1; padding: 14px; border-radius: 12px; border: none; background: #e5e5ea; font-weight: bold; font-size: 14px; }
         .day-btn.active { background: #000; color: white; }
 
-        /* メインカード */
         .card { background: white; border-radius: 24px; padding: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; }
         
-        /* タイマー共通スタイル */
         .timer-row { text-align: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
         .timer-row:last-child { border-bottom: none; }
         .timer-label { font-size: 13px; font-weight: bold; margin-bottom: 2px; }
@@ -78,7 +75,7 @@
 <script>
 const data = {
     weekday: [
-        { s: "06:30", w: "03:40", d: "05:02", t: "00特", m: 11 },
+        { s: "06:30", w: "03:40", d: "05:02", t: "00特", m: 0 },
         { s: "07:30", w: "04:49", d: "06:04", t: "00特", m: 16 },
         { s: "07:45", w: "05:02", d: "06:17", t: "13特", m: 12 },
         { s: "08:00", w: "05:17", d: "06:32", t: "26特", m: 11 },
@@ -91,7 +88,7 @@ const data = {
         { s: "13:30", w: "10:53", d: "12:08", t: "03急", m: 11 }
     ],
     holiday: [
-        { s: "06:30", w: "03:40", d: "05:02", t: "00特", m: 11 },
+        { s: "06:30", w: "03:40", d: "05:02", t: "00特", m: 0 },
         { s: "07:30", w: "04:25", d: "05:40", t: "58特", m: 17 },
         { s: "07:45", w: "04:53", d: "06:08", t: "02各", m: 17 },
         { s: "08:00", w: "05:08", d: "06:23", t: "16各", m: 12 },
@@ -151,35 +148,38 @@ function formatTime(diff) {
 function updateTimer() {
     if (!selectedShift) return;
     const now = new Date();
-    const dStr = selectedShift.d;
-    const wStr = selectedShift.w;
     
-    // 起床時間
+    // 起床時間のターゲット作成
     const wakeT = new Date();
-    const [wH, wM] = wStr.split(':');
+    const [wH, wM] = selectedShift.w.split(':');
     wakeT.setHours(parseInt(wH), parseInt(wM), 0);
-    // 出発時間（マージンなしの本来の時間）
+
+    // 本来の出発時間のターゲット作成
     const origDeptT = new Date();
-    const [dH, dM] = dStr.split(':');
+    const [dH, dM] = selectedShift.d.split(':');
     origDeptT.setHours(parseInt(dH), parseInt(dM), 0);
 
-    // 全ての予定が終わっていたら翌日にする判定（乗り換え終了ベース）
-    const lastEventT = new Date(origDeptT.getTime() + selectedShift.m * 60000);
-    if (lastEventT < now) {
+    // 乗り換え時間のターゲット作成（出発時間の1時間後の分数）
+    const tranT = new Date();
+    tranT.setHours(parseInt(dH) + 1, selectedShift.m, 0);
+
+    // 乗り換えが終わっていたら翌日のスケジュールにする
+    if (tranT < now) {
         wakeT.setDate(wakeT.getDate() + 1);
         origDeptT.setDate(origDeptT.getDate() + 1);
+        tranT.setDate(tranT.setDate() + 1);
     }
 
-    // 各タイマー表示
-    document.getElementById('label-w').innerText = `${wStr} 起床まで`;
+    // 各表示の更新
+    document.getElementById('label-w').innerText = `${selectedShift.w} 起床まで`;
     document.getElementById('timer-w').innerText = formatTime(wakeT - now);
 
-    const deptTWithMargin = new Date(origDeptT.getTime() - marginMinutes * 60000);
-    document.getElementById('label-d').innerText = `${dStr} 出発の${marginMinutes}分前まで`;
-    document.getElementById('timer-d').innerText = formatTime(deptTWithMargin - now);
+    const deptWithMargin = new Date(origDeptT.getTime() - marginMinutes * 60000);
+    document.getElementById('label-d').innerText = `${selectedShift.d} 出発の${marginMinutes}分前まで`;
+    document.getElementById('timer-d').innerText = formatTime(deptWithMargin - now);
 
-    const tranT = new Date(origDeptT.getTime() + selectedShift.m * 60000);
-    document.getElementById('label-t').innerText = `乗り換えまで（${selectedShift.m}分）`;
+    const targetMinStr = String(selectedShift.m).padStart(2, '0');
+    document.getElementById('label-t').innerText = `乗り換え目標 ${parseInt(dH)+1}:${targetMinStr} まで`;
     document.getElementById('timer-t').innerText = formatTime(tranT - now);
     
     document.getElementById('detail-info').innerHTML = `電車：${selectedShift.t} / 本来の出発：${selectedShift.d}`;
