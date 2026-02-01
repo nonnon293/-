@@ -11,14 +11,15 @@
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 400px; }
         
-        /* カード内のデザイン設定 */
+        /* メインカードの設定 */
         .card { background: white; border-radius: 24px; padding: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; width: 100%; box-sizing: border-box; }
         
-        /* 平日・土日祝ボタンをカード内の一番上に配置 */
+        /* 平日・土日祝ボタンをカード内の上部に配置 */
         .day-type { display: flex; width: 100%; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid #f0f0f0; padding-bottom: 15px; }
         .day-btn { flex: 1; padding: 12px; border-radius: 10px; border: none; background: #e5e5ea; font-weight: bold; font-size: 14px; }
         .day-btn.active { background: #000; color: white; }
 
+        /* タイマー行の設定 */
         .timer-row { text-align: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
         .timer-row:last-child { border: none; }
         .timer-label { font-size: 13px; font-weight: bold; margin-bottom: 2px; }
@@ -28,14 +29,16 @@
         .dept-color { color: var(--primary); }
         .tran-color { color: var(--accent); }
 
+        /* 出発時間調整ボタン（横並び） */
         .margin-selector-row { display: flex; justify-content: center; gap: 8px; margin: 10px 0; }
         .margin-btn { flex: 1; max-width: 80px; background: #f0f0f0; border: none; border-radius: 8px; padding: 8px 0; font-size: 12px; font-weight: bold; color: #666; }
         .margin-btn.active { background: #000; color: white; }
 
-        /* 下の不要なエリアを削除 */
+        /* シフト選択ボタンの設定 */
         .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
         button.shift-btn { background: white; border: none; border-radius: 14px; padding: 18px 5px; font-size: 16px; font-weight: bold; color: #333; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; }
         button.shift-btn.active { background: var(--primary); color: white; }
+        
         .transfer-note { font-size: 12px; font-weight: bold; margin-top: 4px; color: #444; }
     </style>
 </head>
@@ -74,7 +77,6 @@
 </div>
 
 <script>
-// シフトデータ
 const data = {
     weekday: [
         { s: "06:30", w: "03:40", d: "05:02", t: "00特", m: "11分" },
@@ -106,7 +108,7 @@ const data = {
 
 let currentDayType = 'weekday';
 let selectedShift = null;
-let marginMinutes = 2;
+let marginMinutes = 2; // デフォルト設定
 
 function setDayType(type) {
     currentDayType = type;
@@ -140,7 +142,7 @@ function renderButtons() {
 }
 
 function formatTime(diff) {
-    // 過ぎた時間を翌日の時間として扱う
+    // 過ぎた時間を翌日のカウントダウンにする設定
     if (diff < 0) diff += 24 * 60 * 60 * 1000;
     const hours = Math.floor(diff / 3600000);
     const mins = Math.floor((diff % 3600000) / 60000);
@@ -158,18 +160,20 @@ function updateTimer() {
     const tMinMatch = selectedShift.t.match(/\d+/);
     const tMin = tMinMatch ? parseInt(tMinMatch[0], 10) : 0;
     
-    // 各ターゲット時刻の計算
+    // 起床時間
     let wakeT = new Date(now);
     wakeT.setHours(wH, wM, 0, 0);
     if (wakeT.getTime() <= now.getTime()) wakeT.setDate(wakeT.getDate() + 1);
 
+    // 出発時間（2分前などの設定を適用）
     let deptT_base = new Date(now);
     deptT_base.setHours(dH, dM, 0, 0);
     let deptT_margin = new Date(deptT_base.getTime() - marginMinutes * 60000);
     if (deptT_margin.getTime() <= now.getTime()) deptT_margin.setDate(deptT_margin.getDate() + 1);
 
+    // 乗り換え目標（出発の1時間後の指定分数）
     let tranT = new Date(now);
-    tranT.setHours(dH + 1, tMin, 0, 0); // 出発の1時間後の分数
+    tranT.setHours(dH + 1, tMin, 0, 0);
     if (tranT.getTime() <= now.getTime()) tranT.setDate(tranT.getDate() + 1);
 
     document.getElementById('timer-w').innerText = formatTime(wakeT.getTime() - now.getTime());
