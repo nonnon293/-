@@ -11,7 +11,7 @@
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 400px; }
         
-        /* 1. 上部のタイマー表示用白枠（カード） */
+        /* タイマー表示エリア（白枠） */
         .card { background: white; border-radius: 24px; padding: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; width: 100%; box-sizing: border-box; }
         
         .timer-row { text-align: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
@@ -28,12 +28,13 @@
         .margin-btn.active { background: #000; color: white; }
         .transfer-note { font-size: 12px; font-weight: bold; margin-top: 4px; color: #444; }
 
-        /* 2. その下に配置する操作エリア（平日・土日ボタン） */
-        .day-type { display: flex; width: 100%; gap: 10px; margin-bottom: 15px; }
+        /* 操作エリア（ボタンまとめ） */
+        .controls-area { width: 100%; }
+        .day-type { display: flex; width: 100%; gap: 10px; margin-bottom: 12px; }
         .day-btn { flex: 1; padding: 14px; border-radius: 12px; border: none; background: #e5e5ea; font-weight: bold; font-size: 14px; }
         .day-btn.active { background: #000; color: white; }
 
-        /* 3. シフト時間ボタンの一覧 */
+        /* シフト時間ボタン一覧 */
         .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
         button.shift-btn { background: white; border: none; border-radius: 14px; padding: 18px 5px; font-size: 16px; font-weight: bold; color: #333; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; }
         button.shift-btn.active { background: var(--primary); color: white; }
@@ -65,12 +66,13 @@
         </div>
     </div>
 
-    <div class="day-type">
-        <button id="btn-weekday" class="day-btn active" onclick="setDayType('weekday')">平日</button>
-        <button id="btn-holiday" class="day-btn" onclick="setDayType('holiday')">土日祝</button>
+    <div class="controls-area">
+        <div class="day-type">
+            <button id="btn-weekday" class="day-btn active" onclick="setDayType('weekday')">平日</button>
+            <button id="btn-holiday" class="day-btn" onclick="setDayType('holiday')">土日祝</button>
+        </div>
+        <div id="shift-grid" class="grid"></div>
     </div>
-
-    <div id="shift-grid" class="grid"></div>
 </div>
 
 <script>
@@ -149,34 +151,27 @@ function formatTime(diff) {
 function updateTimer() {
     if (!selectedShift) return;
     const now = new Date();
+    const [dH, dM] = selectedShift.d.split(':').map(Number);
+    const [wH, wM] = selectedShift.w.split(':').map(Number);
+    const tMinMatch = selectedShift.t.match(/\d+/);
+    const tMin = tMinMatch ? parseInt(tMinMatch[0], 10) : 0;
     
-    const dParts = selectedShift.d.split(':');
-    const wParts = selectedShift.w.split(':');
-    const dH_orig = parseInt(dParts[0], 10);
-    const dM_orig = parseInt(dParts[1], 10);
-    const wH_orig = parseInt(wParts[0], 10);
-    const wM_orig = parseInt(wParts[1], 10);
-    const tMin = parseInt(selectedShift.t.match(/\d+/)[0], 10);
-    
-    let wakeT = new Date(now); wakeT.setHours(wH_orig, wM_orig, 0, 0);
+    let wakeT = new Date(now); wakeT.setHours(wH, wM, 0, 0);
     if (wakeT.getTime() <= now.getTime()) wakeT.setDate(wakeT.getDate() + 1);
 
-    let deptT_base = new Date(now); deptT_base.setHours(dH_orig, dM_orig, 0, 0);
+    let deptT_base = new Date(now); deptT_base.setHours(dH, dM, 0, 0);
     let deptT_margin = new Date(deptT_base.getTime() - marginMinutes * 60000);
     if (deptT_margin.getTime() <= now.getTime()) deptT_margin.setDate(deptT_margin.getDate() + 1);
 
-    let tranT = new Date(now); tranT.setHours(dH_orig + 1, tMin, 0, 0);
+    let tranT = new Date(now); tranT.setHours(dH + 1, tMin, 0, 0);
     if (tranT.getTime() <= now.getTime()) tranT.setDate(tranT.getDate() + 1);
 
     document.getElementById('timer-w').innerText = formatTime(wakeT.getTime() - now.getTime());
     document.getElementById('label-w').innerText = `${selectedShift.w} 起床まで`;
-
     document.getElementById('timer-d').innerText = formatTime(deptT_margin.getTime() - now.getTime());
     document.getElementById('label-d').innerText = `${selectedShift.d} 出発の${marginMinutes}分前まで`;
-
     document.getElementById('timer-t').innerText = formatTime(tranT.getTime() - now.getTime());
-    document.getElementById('label-t').innerText = `乗り換え目標 ${dH_orig + 1}:${String(tMin).padStart(2, '0')} まで`;
-    
+    document.getElementById('label-t').innerText = `乗り換え目標 ${dH + 1}:${String(tMin).padStart(2, '0')} まで`;
     document.getElementById('transfer-info').innerText = `阪神電車への乗換時間：${selectedShift.m}`;
 }
 
