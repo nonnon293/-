@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>シフトタイマー (時刻表タップ対応)</title>
+    <title>正確な時刻表タイマー</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
         :root { --primary: #FF3B30; --secondary: #007AFF; --accent: #FF9500; --bg: #F2F2F7; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 400px; }
-        
         .card { background: white; border-radius: 24px; padding: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; width: 100%; box-sizing: border-box; }
         .timer-row { text-align: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
         .timer-row:last-child { border: none; }
@@ -18,28 +17,23 @@
         .timer-value { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.2; }
         .wake-color { color: var(--secondary); }
         .dept-color { color: var(--primary); }
-
         .controls-area { width: 100%; }
         .day-type { display: flex; width: 100%; gap: 10px; margin-bottom: 12px; }
         .day-btn { flex: 1; padding: 14px; border-radius: 12px; border: none; background: #e5e5ea; font-weight: bold; font-size: 14px; }
         .day-btn.active { background: #000; color: white; }
-
         .section-title { font-size: 12px; font-weight: bold; margin: 15px 0 8px; color: #888; width: 100%; padding-left: 5px; }
         .station-select { display: flex; gap: 8px; margin-bottom: 10px; overflow-x: auto; padding-bottom: 5px; width: 100%; }
-        .station-tab { padding: 10px 15px; background: white; border-radius: 20px; border: 1px solid #ddd; font-size: 12px; font-weight: bold; white-space: nowrap; }
+        .station-tab { padding: 10px 15px; background: white; border-radius: 20px; border: 1px solid #ddd; font-size: 11px; font-weight: bold; white-space: nowrap; }
         .station-tab.active { background: var(--secondary); color: white; border-color: var(--secondary); }
-
         .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; margin-bottom: 10px; }
         .shift-grid { grid-template-columns: repeat(3, 1fr); }
-        
-        button.time-btn { background: #fff; border: 1px solid #eee; border-radius: 10px; padding: 12px 0; font-size: 14px; font-weight: 600; color: #333; box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
+        button.time-btn { background: #fff; border: 1px solid #eee; border-radius: 10px; padding: 10px 0; font-size: 13px; font-weight: 600; color: #333; }
         button.time-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
-        button.shift-btn { background: white; border: none; border-radius: 14px; padding: 18px 5px; font-size: 15px; font-weight: bold; color: #333; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        button.shift-btn { background: white; border: none; border-radius: 14px; padding: 15px 5px; font-size: 15px; font-weight: bold; color: #333; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         button.shift-btn.active { background: var(--primary); color: white; }
     </style>
 </head>
 <body>
-
 <div class="container">
     <div class="card">
         <div class="timer-row">
@@ -51,43 +45,40 @@
             <div id="timer-secondary" class="timer-value dept-color">--:--</div>
         </div>
     </div>
-
     <div class="controls-area">
         <div class="day-type">
             <button id="btn-weekday" class="day-btn active" onclick="setDayType('weekday')">平日</button>
             <button id="btn-holiday" class="day-btn" onclick="setDayType('holiday')">土日祝</button>
         </div>
-
-        <div class="section-title">時刻表から選択 (21・22時台)</div>
+        <div class="section-title">時刻表選択 (21・22時台)</div>
         <div class="station-select">
-            <div id="tab-cp" class="station-tab active" onclick="switchStation('hanshinCP')">尼崎CP</div>
-            <div id="tab-ama" class="station-tab" onclick="switchStation('hanshinAma')">阪神尼崎(優等)</div>
-            <div id="tab-umeda" class="station-tab" onclick="switchStation('hankyuUmeda')">阪急梅田(優等)</div>
+            <div id="tab-cp" class="station-tab active" onclick="switchStation('hanshinCP')">尼崎CP(全)</div>
+            <div id="tab-ama" class="station-tab" onclick="switchStation('hanshinAma')">阪神尼崎(優)</div>
+            <div id="tab-umeda" class="station-tab" onclick="switchStation('hankyuUmeda')">阪急梅田(優)</div>
         </div>
         <div id="timetable-grid" class="grid"></div>
-
         <div class="section-title">通常シフト</div>
         <div id="shift-grid" class="grid shift-grid"></div>
     </div>
 </div>
-
 <script>
+// 画像から21時・22時台を精査
 const schedules = {
     weekday: {
-        hanshinCP: ["21:05", "21:17", "21:29", "21:41", "21:53", "22:05", "22:17", "22:31", "22:46"],
-        hanshinAma: ["21:03特", "21:14急", "21:23特", "21:34急", "21:43特", "21:54急", "22:03特", "22:16急", "22:30特"],
-        hankyuUmeda: ["21:00特", "21:10通", "21:20特", "21:30通", "21:40特", "21:50通", "22:00特", "22:12通", "22:24特"]
+        hanshinCP: ["21:05", "21:17", "21:29", "21:41", "21:53", "22:05", "22:17", "22:31", "22:46", "22:58"],
+        hanshinAma: ["21:03直", "21:14急", "21:23直", "21:34急", "21:43直", "21:54急", "22:03直", "22:16急", "22:30直", "22:42急"],
+        hankyuUmeda: ["21:00特", "21:10通", "21:20特", "21:30通", "21:40特", "21:50通", "22:00特", "22:12通", "22:24特", "22:40通"]
     },
     holiday: {
-        hanshinCP: ["21:01", "21:13", "21:25", "21:37", "21:49", "22:01", "22:13", "22:26", "22:41"],
-        hanshinAma: ["21:04特", "21:15急", "21:24特", "21:35急", "21:44特", "21:55急", "22:04特", "22:16急", "22:28特"],
+        hanshinCP: ["21:01", "21:13", "21:25", "21:37", "21:49", "22:01", "22:13", "22:26", "22:41", "22:56"],
+        hanshinAma: ["21:04直", "21:15急", "21:24直", "21:35急", "21:44直", "21:55急", "22:04直", "22:16急", "22:28直", "22:44急"],
         hankyuUmeda: ["21:00特", "21:12快", "21:24特", "21:36快", "21:48特", "22:00快", "22:12特", "22:24快", "22:40特"]
     }
 };
 
 const shifts = {
-    weekday: [{s:"06:30", w:"03:40"}, {s:"07:30", w:"04:49"}, {s:"08:00", w:"05:17"}, {s:"08:30", w:"05:35"}, {s:"10:00", w:"07:14"}],
-    holiday: [{s:"06:30", w:"03:40"}, {s:"08:30", w:"05:38"}]
+    weekday: [{s:"06:30", w:"03:40"}, {s:"07:30", w:"04:49"}, {s:"08:00", w:"05:17"}, {s:"08:30(1)", w:"05:35"}, {s:"08:30(2)", w:"05:44"}, {s:"10:00", w:"07:14"}],
+    holiday: [{s:"06:30", w:"03:40"}, {s:"07:30", w:"04:25"}, {s:"08:30(1)", w:"05:38"}, {s:"08:30(2)", w:"05:47"}]
 };
 
 let currentDayType = 'weekday';
@@ -105,9 +96,9 @@ function setDayType(type) {
 
 function switchStation(station) {
     currentStation = station;
-    const tabs = { hanshinCP: 'tab-cp', hanshinAma: 'tab-ama', hankyuUmeda: 'tab-umeda' };
-    Object.values(tabs).forEach(id => document.getElementById(id).classList.remove('active'));
-    document.getElementById(tabs[station]).classList.add('active');
+    ['tab-cp', 'tab-ama', 'tab-umeda'].forEach(id => document.getElementById(id).classList.remove('active'));
+    const activeTab = station === 'hanshinCP' ? 'tab-cp' : (station === 'hanshinAma' ? 'tab-ama' : 'tab-umeda');
+    document.getElementById(activeTab).classList.add('active');
     renderTimetable();
 }
 
@@ -148,15 +139,11 @@ function updateTimer() {
     const now = new Date();
     let target = new Date();
     target.setHours(targetTime.h, targetTime.m, 0, 0);
-
-    // 既に過ぎている場合は翌日に設定
     if (target <= now) target.setDate(target.getDate() + 1);
-
     const diff = target - now;
     const hh = Math.floor(diff / 3600000);
     const mm = Math.floor((diff % 3600000) / 60000);
     const ss = Math.floor((diff % 60000) / 1000);
-
     document.getElementById('timer-primary').innerText = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
     document.getElementById('timer-secondary').innerText = targetLabel;
 }
