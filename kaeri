@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>シフトタイマー (夜間時刻表対応)</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <style>
+        :root { --primary: #FF3B30; --secondary: #007AFF; --accent: #FF9500; --bg: #F2F2F7; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 400px; }
+        
+        /* タイマー表示エリア */
+        .card { background: white; border-radius: 24px; padding: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; width: 100%; box-sizing: border-box; }
+        .timer-row { text-align: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+        .timer-row:last-child { border: none; }
+        .timer-label { font-size: 13px; font-weight: bold; margin-bottom: 2px; }
+        .timer-value { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.2; }
+        .wake-color { color: var(--secondary); }
+        .dept-color { color: var(--primary); }
+
+        /* 操作ボタンエリア */
+        .controls-area { width: 100%; }
+        .day-type { display: flex; width: 100%; gap: 10px; margin-bottom: 12px; }
+        .day-btn { flex: 1; padding: 14px; border-radius: 12px; border: none; background: #e5e5ea; font-weight: bold; font-size: 14px; }
+        .day-btn.active { background: #000; color: white; }
+
+        .section-title { font-size: 12px; font-weight: bold; margin: 15px 0 8px; color: #888; width: 100%; padding-left: 5px; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+        button.shift-btn { background: white; border: none; border-radius: 14px; padding: 18px 5px; font-size: 15px; font-weight: bold; color: #333; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; }
+        button.shift-btn.active { background: var(--primary); color: white; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <div class="timer-row">
+            <div id="label-primary" class="timer-label wake-color">次便まで</div>
+            <div id="timer-primary" class="timer-value wake-color">--:--:--</div>
+        </div>
+        <div class="timer-row">
+            <div id="label-secondary" class="timer-label dept-color">発車予定</div>
+            <div id="timer-secondary" class="timer-value dept-color">--:--</div>
+        </div>
+    </div>
+
+    <div class="controls-area">
+        <div class="day-type">
+            <button id="btn-weekday" class="day-btn active" onclick="setDayType('weekday')">平日</button>
+            <button id="btn-holiday" class="day-btn" onclick="setDayType('holiday')">土日祝</button>
+        </div>
+
+        <div class="section-title">夜間時刻表 (21時・22時台)</div>
+        <div id="night-grid" class="grid"></div>
+
+        <div class="section-title">通常シフト</div>
+        <div id="shift-grid" class="grid"></div>
+    </div>
+</div>
+
+<script>
+// 時刻表データ（21時台・22時台）
+const schedules = {
+    weekday: {
+        "阪神センタープール(梅田)": ["21:05", "21:17", "21:29", "21:41", "21:53", "22:05", "22:17", "22:31", "22:46"],
+        "阪急大阪梅田(京都)": ["21:00", "21:10", "21:20", "21:30", "21:40", "21:50", "22:00", "22:10", "22:20", "22:30", "22:45"]
+    },
+    holiday: {
+        "阪神センタープール(梅田)": ["21:01", "21:13", "21:25", "21:37", "21:49", "22:01", "22:13", "22:26", "22:41"],
+        "阪急大阪梅田(京都)": ["21:00", "21:12", "21:24", "21:36", "21:48", "22:00", "22:12", "22:24", "22:40"]
+    }
+};
+
+const data = {
+    weekday: [
+        { s: "阪神 21/22", type: "night", station: "阪神センタープール(梅田)" },
+        { s: "阪急 21/22", type: "night", station: "阪急大阪梅田(京都)" },
+        { s: "06:30", w: "03:40", d: "05:02" },
+        { s: "07:30", w: "04:49", d: "06:04" },
+        { s: "08:30(1)", w: "05:35", d: "06:50" }
+    ],
+    holiday: [
+        { s: "阪神 21/22", type: "night", station: "阪神センタープール(梅田)" },
+        { s: "阪急 21/22", type: "night", station: "阪急大阪梅田(京都)" },
+        { s: "06:30", w: "03:40", d: "05:02" }
+    ]
+};
+
+let currentDayType = 'weekday';
+let selectedShift = null;
+
+function setDayType(type) {
+    currentDayType = type;
+    document.getElementById('btn-weekday').className = 'day-btn' + (type === 'weekday' ? ' active' : '');
+    document.getElementById('btn-holiday').className = 'day-btn' + (type === 'holiday' ? ' active' : '');
+    renderButtons();
+}
+
+function renderButtons() {
+    const nightGrid = document.getElementById('night-grid');
+    const shiftGrid = document.getElementById('shift-grid');
+    nightGrid.innerHTML = ''; shiftGrid.innerHTML = '';
+
+    data[currentDayType].forEach((item) => {
+        const btn = document.createElement('button');
+        btn.className = 'shift-btn';
+        btn.innerText = item.s;
+        btn.onclick = () => { selectedShift = item; renderButtons(); updateTimer(); };
+        if (selectedShift && selectedShift.s === item.s) btn.classList.add('active');
+
+        if (item.type === "night") nightGrid.appendChild(btn);
+        else shiftGrid.appendChild(btn);
+    });
+}
+
+function updateTimer() {
+    if (!selectedShift) return;
+    const now = new Date();
+
+    if (selectedShift.type === "night") {
+        const times = schedules[currentDayType][selectedShift.station];
+        let nextTime = null;
+
+        for (let t of times) {
+            const [h, m] = t.split(':').map(Number);
+            const target = new Date(); target.setHours(h, m, 0, 0);
+            if (target > now) { nextTime = target; break; }
+        }
+
+        if (nextTime) {
+            document.getElementById('label-primary').innerText = `${selectedShift.station} 次便まで`;
+            document.getElementById('timer-primary').innerText = formatDiff(nextTime - now);
+            document.getElementById('label-secondary').innerText = "発車予定時刻";
+            document.getElementById('timer-secondary').innerText = `${nextTime.getHours()}:${String(nextTime.getMinutes()).padStart(2, '0')}`;
+        } else {
+            document.getElementById('timer-primary').innerText = "--:--:--";
+            document.getElementById('timer-secondary').innerText = "本日終了";
+        }
+    } else {
+        // 通常シフトのロジック（起床・出発）
+        const [wH, wM] = selectedShift.w.split(':').map(Number);
+        let wakeT = new Date(); wakeT.setHours(wH, wM, 0, 0);
+        if (wakeT <= now) wakeT.setDate(wakeT.getDate() + 1);
+
+        document.getElementById('label-primary').innerText = `${selectedShift.s} 起床まで`;
+        document.getElementById('timer-primary').innerText = formatDiff(wakeT - now);
+        document.getElementById('label-secondary').innerText = "設定時間";
+        document.getElementById('timer-secondary').innerText = selectedShift.w;
+    }
+}
+
+function formatDiff(diff) {
+    const hh = Math.floor(diff / 3600000);
+    const mm = Math.floor((diff % 3600000) / 60000);
+    const ss = Math.floor((diff % 60000) / 1000);
+    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+}
+
+setInterval(updateTimer, 1000);
+renderButtons();
+</script>
+</body>
+</html>
