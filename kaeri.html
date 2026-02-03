@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>シフトタイマー (夜間時刻表対応)</title>
+    <title>シフトタイマー (駅別時刻表対応)</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
@@ -27,9 +27,13 @@
         .day-btn.active { background: #000; color: white; }
 
         .section-title { font-size: 12px; font-weight: bold; margin: 15px 0 8px; color: #888; width: 100%; padding-left: 5px; }
-        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
-        button.shift-btn { background: white; border: none; border-radius: 14px; padding: 18px 5px; font-size: 15px; font-weight: bold; color: #333; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; width: 100%; margin-bottom: 10px; }
+        .shift-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+        
+        button.shift-btn { background: white; border: none; border-radius: 14px; padding: 18px 5px; font-size: 14px; font-weight: bold; color: #333; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; }
         button.shift-btn.active { background: var(--primary); color: white; }
+        button.station-btn { background: #fff; border: 2px solid #ddd; color: #333; }
+        button.station-btn.active { border-color: var(--secondary); background: #eef7ff; color: var(--secondary); }
     </style>
 </head>
 <body>
@@ -52,44 +56,42 @@
             <button id="btn-holiday" class="day-btn" onclick="setDayType('holiday')">土日祝</button>
         </div>
 
-        <div class="section-title">夜間時刻表 (21時・22時台)</div>
-        <div id="night-grid" class="grid"></div>
+        <div class="section-title">駅を選択 (21時・22時台)</div>
+        <div class="grid">
+            <button id="btn-hanshin" class="shift-btn station-btn" onclick="setStation('hanshin')">阪神センタープール<br>(梅田方面)</button>
+            <button id="btn-hankyu" class="shift-btn station-btn" onclick="setStation('hankyu')">阪急大阪梅田<br>(京都方面)</button>
+        </div>
 
         <div class="section-title">通常シフト</div>
-        <div id="shift-grid" class="grid"></div>
+        <div id="shift-grid" class="shift-grid"></div>
     </div>
 </div>
 
 <script>
-// 時刻表データ（21時台・22時台）
 const schedules = {
     weekday: {
-        "阪神センタープール(梅田)": ["21:05", "21:17", "21:29", "21:41", "21:53", "22:05", "22:17", "22:31", "22:46"],
-        "阪急大阪梅田(京都)": ["21:00", "21:10", "21:20", "21:30", "21:40", "21:50", "22:00", "22:10", "22:20", "22:30", "22:45"]
+        hanshin: ["21:05", "21:17", "21:29", "21:41", "21:53", "22:05", "22:17", "22:31", "22:46"],
+        hankyu: ["21:00", "21:10", "21:20", "21:30", "21:40", "21:50", "22:00", "22:10", "22:20", "22:30", "22:45"]
     },
     holiday: {
-        "阪神センタープール(梅田)": ["21:01", "21:13", "21:25", "21:37", "21:49", "22:01", "22:13", "22:26", "22:41"],
-        "阪急大阪梅田(京都)": ["21:00", "21:12", "21:24", "21:36", "21:48", "22:00", "22:12", "22:24", "22:40"]
+        hanshin: ["21:01", "21:13", "21:25", "21:37", "21:49", "22:01", "22:13", "22:26", "22:41"],
+        hankyu: ["21:00", "21:12", "21:24", "21:36", "21:48", "22:00", "22:12", "22:24", "22:40"]
     }
 };
 
 const data = {
     weekday: [
-        { s: "阪神 21/22", type: "night", station: "阪神センタープール(梅田)" },
-        { s: "阪急 21/22", type: "night", station: "阪急大阪梅田(京都)" },
-        { s: "06:30", w: "03:40", d: "05:02" },
-        { s: "07:30", w: "04:49", d: "06:04" },
-        { s: "08:30(1)", w: "05:35", d: "06:50" }
+        { s: "06:30", w: "03:40" }, { s: "07:30", w: "04:49" }, { s: "08:00", w: "05:17" },
+        { s: "08:30(1)", w: "05:35" }, { s: "08:30(2)", w: "05:44" }, { s: "10:00", w: "07:14" }
     ],
     holiday: [
-        { s: "阪神 21/22", type: "night", station: "阪神センタープール(梅田)" },
-        { s: "阪急 21/22", type: "night", station: "阪急大阪梅田(京都)" },
-        { s: "06:30", w: "03:40", d: "05:02" }
+        { s: "06:30", w: "03:40" }, { s: "08:30(1)", w: "05:38" }
     ]
 };
 
 let currentDayType = 'weekday';
-let selectedShift = null;
+let selectedMode = null; // 'shift' or 'hanshin' or 'hankyu'
+let selectedItem = null;
 
 function setDayType(type) {
     currentDayType = type;
@@ -98,29 +100,44 @@ function setDayType(type) {
     renderButtons();
 }
 
-function renderButtons() {
-    const nightGrid = document.getElementById('night-grid');
-    const shiftGrid = document.getElementById('shift-grid');
-    nightGrid.innerHTML = ''; shiftGrid.innerHTML = '';
+function setStation(station) {
+    selectedMode = station;
+    selectedItem = null;
+    renderButtons();
+    updateTimer();
+}
 
+function setShift(item) {
+    selectedMode = 'shift';
+    selectedItem = item;
+    renderButtons();
+    updateTimer();
+}
+
+function renderButtons() {
+    // 駅ボタンの状態更新
+    document.getElementById('btn-hanshin').className = 'shift-btn station-btn' + (selectedMode === 'hanshin' ? ' active' : '');
+    document.getElementById('btn-hankyu').className = 'shift-btn station-btn' + (selectedMode === 'hankyu' ? ' active' : '');
+
+    // 通常シフトボタンの生成
+    const grid = document.getElementById('shift-grid');
+    grid.innerHTML = '';
     data[currentDayType].forEach((item) => {
         const btn = document.createElement('button');
         btn.className = 'shift-btn';
         btn.innerText = item.s;
-        btn.onclick = () => { selectedShift = item; renderButtons(); updateTimer(); };
-        if (selectedShift && selectedShift.s === item.s) btn.classList.add('active');
-
-        if (item.type === "night") nightGrid.appendChild(btn);
-        else shiftGrid.appendChild(btn);
+        btn.onclick = () => setShift(item);
+        if (selectedMode === 'shift' && selectedItem && selectedItem.s === item.s) btn.classList.add('active');
+        grid.appendChild(btn);
     });
 }
 
 function updateTimer() {
-    if (!selectedShift) return;
+    if (!selectedMode) return;
     const now = new Date();
 
-    if (selectedShift.type === "night") {
-        const times = schedules[currentDayType][selectedShift.station];
+    if (selectedMode === 'hanshin' || selectedMode === 'hankyu') {
+        const times = schedules[currentDayType][selectedMode];
         let nextTime = null;
 
         for (let t of times) {
@@ -130,24 +147,24 @@ function updateTimer() {
         }
 
         if (nextTime) {
-            document.getElementById('label-primary').innerText = `${selectedShift.station} 次便まで`;
+            const label = selectedMode === 'hanshin' ? '阪神(梅田方面) 次便' : '阪急(京都方面) 次便';
+            document.getElementById('label-primary').innerText = label;
             document.getElementById('timer-primary').innerText = formatDiff(nextTime - now);
-            document.getElementById('label-secondary').innerText = "発車予定時刻";
+            document.getElementById('label-secondary').innerText = "発車予定";
             document.getElementById('timer-secondary').innerText = `${nextTime.getHours()}:${String(nextTime.getMinutes()).padStart(2, '0')}`;
         } else {
             document.getElementById('timer-primary').innerText = "--:--:--";
             document.getElementById('timer-secondary').innerText = "本日終了";
         }
-    } else {
-        // 通常シフトのロジック（起床・出発）
-        const [wH, wM] = selectedShift.w.split(':').map(Number);
+    } else if (selectedMode === 'shift') {
+        const [wH, wM] = selectedItem.w.split(':').map(Number);
         let wakeT = new Date(); wakeT.setHours(wH, wM, 0, 0);
         if (wakeT <= now) wakeT.setDate(wakeT.getDate() + 1);
 
-        document.getElementById('label-primary').innerText = `${selectedShift.s} 起床まで`;
+        document.getElementById('label-primary').innerText = `${selectedItem.s} 起床まで`;
         document.getElementById('timer-primary').innerText = formatDiff(wakeT - now);
-        document.getElementById('label-secondary').innerText = "設定時間";
-        document.getElementById('timer-secondary').innerText = selectedShift.w;
+        document.getElementById('label-secondary').innerText = "設定時刻";
+        document.getElementById('timer-secondary').innerText = selectedItem.w;
     }
 }
 
